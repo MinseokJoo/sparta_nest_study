@@ -19,15 +19,15 @@ export class BoardController {
 
   // 2. 게시글 목록을 가져오는 API
   @Get('/articles')
-  getArticles() {
-    return this.boardService.getArticles();
+  async getArticles() {
+    return await this.boardService.getArticles();
   }
 
   // 3. 게시글 상세조회 => 게시글 ID로 확인
   @Get('/articles/:id')
-  getArticleById(@Param('id') articleId: number) { // 원래는 string
+  async getArticleById(@Param('id') articleId: number) { // 원래는 string
     // class-validator / class-transformer
-    return this.boardService.getArticleById(articleId);
+    return await this.boardService.getArticleById(articleId);
   }
 
   // 4. 게시글 작성
@@ -42,11 +42,11 @@ export class BoardController {
 
   // 5. 게시글 수정
   @Put('/articles/:id')
-  updateArticle(
+  async updateArticle(
     @Param('id') articleId: number,
     @Body() data: UpdateArticleDto,
   ) {
-    return this.boardService.updateArticle(
+    return await this.boardService.updateArticle(
       articleId,
       data.title,
       data.content,
@@ -56,10 +56,10 @@ export class BoardController {
 
   // 6. 게시글 삭제
   @Delete('articles/:id')
-  deleteArticle(
+  async deleteArticle(
     @Param('id') articleId: number,
     @Body() data: DeleteArticleDto,
   ) {
-    return this.boardService.deleteArticle(articleId, data.password);
+    return await this.boardService.deleteArticle(articleId, data.password);
   }
 }

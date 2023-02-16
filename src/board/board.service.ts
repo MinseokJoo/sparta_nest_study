@@ -3,52 +3,72 @@ import {
   NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
 import _ from 'lodash';
+import { Repository } from 'typeorm';
+import { Article } from './board.entity';
 
 @Injectable()
 export class BoardService {
-  // 원래 Repository를 참조하여 비지니스 로직을 실행하기 위해 데이터베이스와 통신
-  // 하지만 편의성을 위하여 인-메모리 변수로 해결
+  constructor(
+    @InjectRepository(Article) private articleRepository: Repository<Article>,
+  ) {}
 
-  private articles = [];
-
-  private articlePassword = new Map(); // Map은 {articleId - password}, {articleId - password}, {articleId - password}
-
-  getArticles() {
-    return this.articles;
+  async getArticles() {
+    return await this.articleRepository.find({
+      where: { deletedAt: null },
+      select: ['id', 'author', 'title', 'createdAt'],
+    });
   }
 
-  getArticleById(id: number) {
-    return this.articles.find((article) => article.id === id);
+  async getArticleById(id: number) {
+    return await this.articleRepository.findOne({
+      where: { id, deletedAt: null },
+      select: ['author', 'title', 'content', 'createdAt', 'updatedAt'],
+    });
   }
 
+  // create는 async await 안한 이유는
+  // 위에 두 get은 find를 해서 목록을 받아오는 걸 보장해야하지만
+  // create는 호출한 뒤 호출했는 지 응답을 굳이 안받아도 됨
   createArticle(title: string, content: string, password: number) {
-    // id를 먼저 매겨야 함
-    // 1번부터 시작 => 현재 배열의 크기 + 1
-    const articleId = this.articles.length + 1;
-    this.articles.push({ id: articleId, title, content });
-    this.articlePassword.set(articleId, password);
-    return articleId;
+    this.articleRepository.insert({
+      author: 'test',
+      title,
+      content,
+      password: password.toString(),
+    });
   }
 
-  updateArticle(id: number, title: string, content: string, password: number) {
-    if (this.articlePassword.get(id) !== password) {
-      throw new UnauthorizedException('Password is not correct. id :' + id);
-    }
-    const article = this.getArticleById(id);
+  async updateArticle(
+    id: number,
+    title: string,
+    content: string,
+    password: number,
+  ) {
+    await this.verifyPassword(id, password);
+
+    this.articleRepository.update(id, { title, content });
+  }
+
+  async deleteArticle(id: number, password: number) {
+    await this.verifyPassword(id, password);
+
+    this.articleRepository.softDelete(id);
+  }
+
+  private async verifyPassword(id: number, password: number) {
+    const article = await this.articleRepository.findOne({
+      where: { id, deletedAt: null },
+      select: ['password'],
+    });
+
     if (_.isNil(article)) {
       throw new NotFoundException('Article is not found. id :' + id);
     }
 
-    article.title = title;
-    article.content = content;
-  }
-
-  deleteArticle(id: number, password: number) {
-    if (this.articlePassword.get(id) !== password) {
-      throw new UnauthorizedException('Password is not correct. id :' + id);
+    if (article.password !== password.toString()) {
+      return new UnauthorizedException(`Password is not corrected. id : ${id}`);
     }
-
-    this.articles = this.articles.filter((article) => article.id !== id);
   }
 }
