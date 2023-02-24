@@ -7,7 +7,7 @@ export class UserController {
 
   @Post("/login")
   async login() {
-    return await this.userService.login("test_id", "test_pw");
+    return await this.userService.login("test_id", "test_new_p");
   }
 
   @Post("/signup")

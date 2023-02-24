@@ -18,7 +18,7 @@ export class TypeOrmConfigService implements TypeOrmOptionsFactory {
       username: this.configService.get<string>("DATABASE_USERNAME"),
       password: this.configService.get<string>("DATABASE_PASSWORD"),
       database: this.configService.get<string>("DATABASE_NAME"),
-      entities: [User],
+      entities: [Article, User],
 
       // 개발버전에서는 스키마의 용이한 수정을 위함
       synchronize: true,

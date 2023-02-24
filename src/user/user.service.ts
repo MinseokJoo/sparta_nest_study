@@ -56,7 +56,7 @@ export class UserService {
   }
 
   updateUser(userId: string, name: string, password: string) {
-    this.userRepository.update(userId, { name, password });
+    this.userRepository.update({userId}, { name, password });
   }
 
   async getUserInfo(userId: string) {

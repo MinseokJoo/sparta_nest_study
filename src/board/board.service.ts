@@ -3,15 +3,13 @@ import {
   NotFoundException,
   UnauthorizedException,
 } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
 import _ from 'lodash';
-import { Repository } from 'typeorm';
-import { Article } from './board.entity';
+import { ArticleRepository } from './article.repository';
 
 @Injectable()
 export class BoardService {
   constructor(
-    @InjectRepository(Article) private articleRepository: Repository<Article>,
+    private articleRepository: ArticleRepository,
   ) {}
 
   async getArticles() {
@@ -26,6 +24,10 @@ export class BoardService {
       where: { id, deletedAt: null },
       select: ['author', 'title', 'content', 'createdAt', 'updatedAt'],
     });
+  }
+
+  async getHotArticles() {
+    return await this.articleRepository.getArticlesByViewCount()
   }
 
   // create는 async await 안한 이유는

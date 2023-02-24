@@ -18,7 +18,6 @@ export class AuthMiddleware implements NestMiddleware {
 
     let token: string;
     try {
-      // 클라이언트가 헤더에 Authorization 필드로 "Bearer {JWT}"
       token = authHeader.split(" ")[1];
       const payload = await this.jwtService.verify(token);
       req.user = payload;
