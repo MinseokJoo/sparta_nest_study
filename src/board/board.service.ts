@@ -1,43 +1,54 @@
 import {
+  CACHE_MANAGER,
+  Inject,
   Injectable,
   NotFoundException,
   UnauthorizedException,
-} from '@nestjs/common';
-import _ from 'lodash';
-import { ArticleRepository } from './article.repository';
+} from "@nestjs/common";
+import _ from "lodash";
+import { Cache } from "cache-manager";
+import { ArticleRepository } from "./article.repository";
 
 @Injectable()
 export class BoardService {
   constructor(
-    private articleRepository: ArticleRepository,
+    // 새로 의존성을 주입한 캐시 매니저!
+    @Inject(CACHE_MANAGER) private readonly cacheManager: Cache,
+    private articleRepository: ArticleRepository
   ) {}
 
   async getArticles() {
-    return await this.articleRepository.find({
+    const cachedArticles = await this.cacheManager.get("articles");
+    if (!_.isNil(cachedArticles)) {
+      return cachedArticles;
+    }
+
+    const articles = await this.articleRepository.find({
       where: { deletedAt: null },
-      select: ['id', 'author', 'title', 'createdAt'],
+      select: ["author", "title", "updatedAt"],
     });
+    await this.cacheManager.set("articles", articles);
+    return articles;
   }
 
   async getArticleById(id: number) {
     return await this.articleRepository.findOne({
       where: { id, deletedAt: null },
-      select: ['author', 'title', 'content', 'createdAt', 'updatedAt'],
+      select: ["author", "title", "content", "updatedAt"],
     });
   }
 
   async getHotArticles() {
-    return await this.articleRepository.getArticlesByViewCount()
+    return await this.articleRepository.getArticlesByViewCount(); // 일반 리포지토리엔 없는 커스텀 리포지터리에만 있는 함수!
   }
 
-  // create는 async await 안한 이유는
-  // 위에 두 get은 find를 해서 목록을 받아오는 걸 보장해야하지만
-  // create는 호출한 뒤 호출했는 지 응답을 굳이 안받아도 됨
   createArticle(title: string, content: string, password: number) {
     this.articleRepository.insert({
-      author: 'test',
+      // 일단 author는 test로 고정합니다.
+      author: "test",
       title,
       content,
+      // password도 일단은 잠시 숫자를 문자열로 바꿉니다. 나중에 암호화된 비밀번호를 저장하도록 하겠습니다.
       password: password.toString(),
     });
   }
@@ -46,31 +57,31 @@ export class BoardService {
     id: number,
     title: string,
     content: string,
-    password: number,
+    password: number
   ) {
-    await this.verifyPassword(id, password);
-
+    await this.checkPassword(id, password);
     this.articleRepository.update(id, { title, content });
   }
 
   async deleteArticle(id: number, password: number) {
-    await this.verifyPassword(id, password);
-
-    this.articleRepository.softDelete(id);
+    await this.checkPassword(id, password);
+    this.articleRepository.softDelete(id); // soft delete를 시켜주는 것이 핵심입니다!
   }
 
-  private async verifyPassword(id: number, password: number) {
+  private async checkPassword(id: number, password: number) {
+    // 아래의 코드는 getArticleById와 거의 흡사하지만 password를 추가로 인출하는 것이 차이입니다.
     const article = await this.articleRepository.findOne({
       where: { id, deletedAt: null },
-      select: ['password'],
+      select: ["password"],
     });
-
     if (_.isNil(article)) {
-      throw new NotFoundException('Article is not found. id :' + id);
+      throw new NotFoundException(`Article not found. id: ${id}`);
     }
 
     if (article.password !== password.toString()) {
-      return new UnauthorizedException(`Password is not corrected. id : ${id}`);
+      throw new UnauthorizedException(
+        `Article password is not correct. id: ${id}`
+      );
     }
   }
 }
